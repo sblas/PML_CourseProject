@@ -81,7 +81,7 @@ model <- train(classe~. , data=training, method="rf",prox=FALSE, trControl=train
 
 ```
 
-The resulting model fit was good with a low out of sample error rate (0.63%).  Out of sample error is an internal error estimate of the random forect as it is being constructed.
+The resulting model fit was good with a low out of bag error rate (0.63%).  Out of bag error is an internal error estimate of the random forect as it is being constructed.  It would be expected that the out of sample error rate will be higher (>0.63%) than the out of bag error.
 
 ```{r modelresults, echo=TRUE}
 
@@ -90,7 +90,7 @@ print(model$finalModel)
 
 ```
 
-Additional validation of the model was done using the testing data created from the inital training data.  Although not as good as the out of sample error rate would indicate (which is an expected result), the model is still very good as can be seen in the confusion matrix with an accuracy of 99.1% (95% CI: 98.8% - 99.4%).  
+Additional validation of the model was done using the testing data created from the inital training data to check out of sample error rates.  Although not as good as the out of bag error rate would indicate (which is the expected result), the model is still very good as can be seen in the confusion matrix with an accuracy of 99.1% (95% CI: 98.8% - 99.4%).  
 
 ```{r modelpredict, echo=TRUE}
 
