@@ -1,0 +1,119 @@
+---
+title: "Weightlifting: How Well They Do It?"
+output: html_document
+---
+
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+For this project, the goal was to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to classify the performance of unilateral dumbbell bicep curls. The exercises were performed by six males.  Each participant performed one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in each of five ways:
+
+* Class A: exactly according to the specification
+* Class B: throwing the elbows to the front
+* Class C: lifting the dumbbell only halfway
+* Class D: lowering the dumbbell only halfway
+* Class E: throwing the hips to the front
+
+More information on this study and the process in cleaning the data to the point in which it was used for this project is available from theis [website](http://groupware.les.inf.puc-rio.br/har) (see the section on the Weight Lifting Exercise Dataset). The data for this project come from [here](http://groupware.les.inf.puc-rio.br/har). 
+
+##Data Cleaning
+
+The caret and ggplot2 packages will be used in this analysis.
+
+```{r loadlibrary}
+
+require(caret); require(ggplot2)
+
+```
+
+The [training](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and [testing](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) datasets for this project were part of the course project for Coursera's Practical Machine Learning Course.   
+
+The training data set has 19622 observations with 160 variables.  The testing data set has 20 observations with 160 variables.
+
+```{r loaddata, echo=FALSE}
+
+pml_training <- read.csv("./pml-training.csv")
+pml_testing <- read.csv("./pml-testing.csv")
+
+```
+
+Many of the 160 variables in the datasets are summary statistics of the sensors data over the complete repetitions (six participants doing 10 reps of 5 different classes).  Therefore this summary statistics data does not exist for every row of data resultin in many missing values.  
+
+Additionally, there are seven variables in the dataset which are either sequential variables or uniquely identify the participant / time in which the repetition took place.  This is information that will not be useful in predicting the class of lift for future observations and have thus been not included in the dataset.
+
+The following list of variables are the variables which will be consiered in this project. 
+
+```{r clean, echo=FALSE}
+
+training_reduced <- pml_training[,c(colnames(pml_training)[-grep("kurtosis|skewness|max|min|amplitude|var|avg|stddev",colnames(pml_training))])][,-c(1:7)]
+
+colnames(training_reduced)
+
+```
+
+##Model Building
+
+The initial training data was split using `createDataPartition` with 75% of the initial training data being split out to the training set and the remaining 25% being in the testing set.
+
+```{r splitdata}
+
+set.seed(684321)
+inTrain = createDataPartition(y=training_reduced$classe, p = .75,list=FALSE)
+training = training_reduced[ inTrain,]
+testing = training_reduced[-inTrain,]
+
+```
+
+Various quick and simple plots were generated to get a graphical feel for the data and the terms which could predict differences in the manner of exercise.  In the interest of brevity, only one of many is included for reference in this report.
+
+```{r plots}
+
+qplot(pitch_forearm,roll_forearm,colour=classe,data=training)
+
+```
+
+The `classe` variable in the training data set represents the manner in which the participant did the exercies which is the feature of interest.  The model for predicting this feature was built with random forests using a 5-fold cross validation.  
+
+```{r model, echo=TRUE}
+
+model <- train(classe~. , data=training, method="rf",prox=FALSE, trControl=trainControl(method="cv",number=5,allowParallel=TRUE))
+
+```
+
+The resulting model fit was good with a low out of sample error rate (0.63%).  Out of sample error is an internal error estimate of the random forect as it is being constructed.
+
+```{r modelresults, echo=TRUE}
+
+print(model)
+print(model$finalModel)
+
+```
+
+Additional validation of the model was done using the testing data created from the inital training data.  Although not as good as the out of sample error rate would indicate (which is an expected result), the model is still very good as can be seen in the confusion matrix with an accuracy of 99.1% (95% CI: 98.8% - 99.4%).  
+
+```{r modelpredict, echo=TRUE}
+
+modelpredict <- predict(model,testing)
+confusionMatrix(testing$classe,modelpredict)
+
+```
+
+##Results
+
+This model is sufficient to apply to the final test data set to get predictions for the class of exercise performed.  The results were submitted and automatically graded.  Based on the coursera results 20 of the 20 predictions were corrrect.
+
+```{r final, echo=FALSE}
+finalpredict <- predict(model,pml_testing)
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(finalpredict)
+```
+
